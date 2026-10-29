@@ -1,55 +1,66 @@
-// MongoDB connection helper.
-// Supports both MongoDB Atlas (MONGO_ATLAS_URI) and a local MongoDB instance.
-// Reuses the existing connection across warm serverless invocations.
+// MongoDB connection helper (serverless-safe).
+// Atlas (MONGO_ATLAS_URI) use hota hai. Local fallback sirf development me.
 const mongoose = require('mongoose');
 
-let cachedConnection = null;
+const isProd = process.env.NODE_ENV === 'production' || !!process.env.VERCEL;
+
+// Global cache: warm serverless invocations me connection reuse hota hai.
+let cached = global._mongooseCache;
+if (!cached) {
+  cached = global._mongooseCache = { conn: null, promise: null };
+}
+
+const options = {
+  serverSelectionTimeoutMS: 8000, // Vercel ke timeout se pehle fail ho jaye
+  socketTimeoutMS: 45000,
+  maxPoolSize: 5,
+};
 
 async function connectDB() {
-  // If a connection already exists and is ready, reuse it.
-  if (cachedConnection && mongoose.connection.readyState === 1) {
-    return cachedConnection;
+  // Already connected? reuse.
+  if (cached.conn && mongoose.connection.readyState === 1) {
+    return cached.conn;
   }
 
-  // If a previous connection attempt is in flight, wait for it.
-  if (mongoose.connection.readyState === 2) {
-    return new Promise((resolve, reject) => {
-      mongoose.connection.once('connected', () => resolve(mongoose.connection));
-      mongoose.connection.once('error', reject);
-    });
-  }
+  if (!cached.promise) {
+    const atlasUri = (process.env.MONGO_ATLAS_URI || '').trim();
+    const localUri =
+      process.env.MONGO_LOCAL_URI || 'mongodb://127.0.0.1:27017/Baladia';
 
-  const atlasUri = process.env.MONGO_ATLAS_URI;
-  const localUri = process.env.MONGO_LOCAL_URI || 'mongodb://127.0.0.1:27017/Baladia';
-
-  // Try Atlas first; fall back to local if Atlas is unreachable.
-  const uri = atlasUri && atlasUri.trim().length > 0 ? atlasUri : localUri;
-
-  try {
-    cachedConnection = await mongoose.connect(uri, {
-      serverSelectionTimeoutMS: 15000,
-      socketTimeoutMS: 45000,
-    });
-    console.log('MongoDB connected');
-    return cachedConnection;
-  } catch (error) {
-    if (atlasUri && atlasUri.trim().length > 0) {
-      console.error('Atlas connection failed, falling back to local:', error.message);
-      try {
-        cachedConnection = await mongoose.connect(localUri, {
-          serverSelectionTimeoutMS: 15000,
-          socketTimeoutMS: 45000,
-        });
-        console.log('MongoDB connected (local fallback)');
-        return cachedConnection;
-      } catch (localError) {
-        console.error('Local MongoDB connection error:', localError.message);
-        throw localError;
+    cached.promise = (async () => {
+      // Production: sirf Atlas, koi local fallback nahi.
+      if (isProd) {
+        if (!atlasUri) {
+          throw new Error('MONGO_ATLAS_URI is not set in environment variables');
+        }
+        const conn = await mongoose.connect(atlasUri, options);
+        console.log('MongoDB connected (Atlas)');
+        return conn;
       }
-    }
-    console.error('MongoDB connection error:', error.message);
-    throw error;
+
+      // Development: pehle Atlas, phir local.
+      if (atlasUri) {
+        try {
+          const conn = await mongoose.connect(atlasUri, options);
+          console.log('MongoDB connected (Atlas)');
+          return conn;
+        } catch (error) {
+          console.error('Atlas failed, falling back to local:', error.message);
+        }
+      }
+      const conn = await mongoose.connect(localUri, options);
+      console.log('MongoDB connected (local)');
+      return conn;
+    })().catch((error) => {
+      cached.promise = null; // agli request pe dobara try ho
+      cached.conn = null;
+      console.error('MongoDB connection error:', error.message);
+      throw error;
+    });
   }
+
+  cached.conn = await cached.promise;
+  return cached.conn;
 }
 
 module.exports = connectDB;

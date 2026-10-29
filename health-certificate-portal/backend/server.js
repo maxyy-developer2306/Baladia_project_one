@@ -15,46 +15,41 @@ const certificateRoutes = require('./routes/certificates');
 const settingsRoutes = require('./routes/settings');
 
 const app = express();
+app.set('trust proxy', 1); // Vercel proxy ke liye (rate limit + secure cookies)
 const PORT = process.env.PORT || 4000;
 
-// Allowed frontend origins (both deployments + local dev).
-const MAIN_URL = process.env.MAIN_DEPLOYMENT_URL || '';
-const BACKUP_URL = process.env.BACKUP_DEPLOYMENT_URL || '';
-const LOCAL_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
-const allowedOrigins = [LOCAL_URL, MAIN_URL, BACKUP_URL].filter(Boolean);
+// Allowed frontend origins (hardcoded + env + local dev).
+const allowedOrigins = [
+  'https://app-balady-gov-sa-gold.vercel.app',
+  'https://app-balady-gov-com.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  process.env.MAIN_DEPLOYMENT_URL,
+  process.env.BACKUP_DEPLOYMENT_URL,
+  process.env.FRONTEND_URL,
+]
+  .filter(Boolean)
+  .map((u) => u.replace(/\/+$/, '')); // trailing slash hata do
 
-// Local folder for certificate photos when Cloudinary is not configured.
 const uploadsDir = path.join(__dirname, 'uploads');
 
+// --- CORS (sab se pehle, taake error pe bhi headers jayen) ---
+const corsOptions = {
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(null, false); // error throw nahi, bas block
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+};
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
+
 // --- Middleware ---
-
-// Parse JSON bodies.
 app.use(express.json({ limit: '2mb' }));
-
-// Parse cookies (required for HTTP-only JWT session cookie).
 app.use(cookieParser());
-
-// CORS: allow both deployments and local dev, with credentials (cookies).
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      // Allow requests with no origin (mobile apps, curl, etc.)
-      if (!origin) {
-        return callback(null, true);
-      }
-      // Echo back the matching origin (required when credentials: true)
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, origin);
-      }
-      return callback(new Error('Not allowed by CORS'));
-    },
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-  })
-);
-
-// Helmet security headers (disable CSP so our inline assets/images load).
 app.use(
   helmet({
     crossOriginResourcePolicy: { policy: 'cross-origin' },
@@ -62,27 +57,44 @@ app.use(
   })
 );
 
-// Serve locally stored certificate photos.
 app.use('/uploads', express.static(uploadsDir));
 
+// --- DB connection (serverless-safe, cached) ---
+let dbReady = null;
+app.use(async (_req, res, next) => {
+  try {
+    if (!dbReady) dbReady = connectDB();
+    await dbReady;
+    next();
+  } catch (error) {
+    dbReady = null; // agli request pe dobara try kare
+    console.error('DB connection failed:', error.message);
+    res.status(500).json({ message: 'Database connection failed' });
+  }
+});
+
 // --- Routes ---
+app.get('/', (_req, res) => {
+  res.json({
+    status: 'ok',
+    service: 'health-certificate-portal-backend',
+    message: 'Backend is running. API endpoints are under /api/ and /.',
+  });
+});
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', service: 'health-certificate-portal-backend' });
 });
 
-// Root route — friendly status page when backend URL is opened directly.
-app.get('/', (_req, res) => {
-  res.json({
-    status: 'ok',
-    service: 'health-certificate-portal-backend',
-    message: 'Backend is running. Database connected. API endpoints are under /api/.',
-  });
-});
-
+// Dono paths support: /api/auth/... aur /auth/...
 app.use('/api/auth', authRoutes);
+app.use('/auth', authRoutes);
+
 app.use('/api/certificates', certificateRoutes);
+app.use('/certificates', certificateRoutes);
+
 app.use('/api/settings', settingsRoutes);
+app.use('/settings', settingsRoutes);
 
 // --- 404 handler ---
 app.use((_req, res) => {
@@ -95,17 +107,11 @@ app.use((err, _req, res, _next) => {
   res.status(500).json({ message: 'Internal server error' });
 });
 
-// Connect to MongoDB (Atlas or local), then start the server.
-connectDB()
-  .then(() => {
-    app.listen(PORT, () => {
-      console.log(`Server running on http://localhost:${PORT}`);
-      console.log(`MongoDB URI: ${process.env.MONGO_ATLAS_URI ? 'Atlas' : process.env.MONGO_LOCAL_URI || 'local'}`);
-    });
-  })
-  .catch((error) => {
-    console.error('Failed to start server:', error.message);
-    process.exit(1);
+// Sirf local pe listen karo, Vercel pe nahi
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`);
   });
+}
 
 module.exports = app;

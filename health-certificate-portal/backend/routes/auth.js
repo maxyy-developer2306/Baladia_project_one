@@ -1,17 +1,26 @@
 // Authentication routes: login, logout, me.
 const express = require('express');
 const rateLimit = require('express-rate-limit');
-const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
 
 const router = express.Router();
 
+const isProd = process.env.NODE_ENV === 'production' || !!process.env.VERCEL;
+
+// Cookie options ek jagah (login aur logout dono me same hone chahiye).
+const cookieOptions = {
+  httpOnly: true,
+  secure: isProd,
+  sameSite: isProd ? 'none' : 'lax',
+  path: '/',
+};
+
 // Rate limit login attempts to prevent brute force attacks.
 const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10, // limit each IP to 10 login requests per windowMs
+  windowMs: 15 * 60 * 1000,
+  max: 10,
   message: {
     message: 'Too many login attempts. Please try again in 15 minutes.',
   },
@@ -19,12 +28,11 @@ const loginLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// POST /api/auth/login
+// POST /api/auth/login  (aur /auth/login)
 router.post('/login', loginLimiter, async (req, res) => {
   try {
     const { username, password } = req.body || {};
 
-    // Validate input.
     if (!username || !password) {
       return res.status(400).json({ message: 'Username and password are required.' });
     }
@@ -35,9 +43,13 @@ router.post('/login', loginLimiter, async (req, res) => {
 
     const admin = await User.findOne({ username: username.trim().toLowerCase() });
 
-    // Use a constant-time comparison to avoid timing attacks.
     if (!admin || !(await admin.verifyPassword(password))) {
       return res.status(401).json({ message: 'Invalid username or password.' });
+    }
+
+    if (!process.env.JWT_SECRET) {
+      console.error('JWT_SECRET is not set');
+      return res.status(500).json({ message: 'Server configuration error.' });
     }
 
     const token = jwt.sign(
@@ -46,13 +58,9 @@ router.post('/login', loginLimiter, async (req, res) => {
       { expiresIn: '24h' }
     );
 
-    // Set the session cookie as HTTP-only, SameSite, and secure in production.
     res.cookie('adminSession', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
-      path: '/',
+      ...cookieOptions,
+      maxAge: 24 * 60 * 60 * 1000,
     });
 
     return res.json({
@@ -67,12 +75,7 @@ router.post('/login', loginLimiter, async (req, res) => {
 
 // POST /api/auth/logout
 router.post('/logout', (req, res) => {
-  res.clearCookie('adminSession', {
-    path: '/',
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-  });
+  res.clearCookie('adminSession', cookieOptions);
   return res.json({ message: 'Logged out successfully.' });
 });
 
