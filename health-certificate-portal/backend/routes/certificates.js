@@ -93,7 +93,7 @@ router.get('/', authMiddleware, async (req, res) => {
 });
 
 // --- Admin: get one certificate by internal ID ---
-router.get('/:id', authMiddleware, async (req, res) => {
+router.get('/:id', async (req, res) => {
   try {
     const certificate = await Certificate.findById(req.params.id);
     if (!certificate) {
