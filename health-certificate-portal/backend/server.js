@@ -28,18 +28,24 @@ const uploadsDir = path.join(__dirname, 'uploads');
 
 // --- Middleware ---
 
+// Parse JSON bodies.
 app.use(express.json({ limit: '2mb' }));
+
+// Parse cookies (required for HTTP-only JWT session cookie).
 app.use(cookieParser());
 
+// CORS: allow both deployments and local dev, with credentials (cookies).
 app.use(
   cors({
-    origin: function (origin, callback) {
-      // allow requests with no origin (like curl, mobile apps, Postman)
-      if (!origin) return callback(null, true);
-      if (allowedOrigins.includes(origin)) {
+    origin: (origin, callback) => {
+      // Allow requests with no origin (mobile apps, curl, etc.)
+      if (!origin) {
         return callback(null, true);
       }
-      console.error('Blocked by CORS:', origin, 'Allowed:', allowedOrigins);
+      // Echo back the matching origin (required when credentials: true)
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, origin);
+      }
       return callback(new Error('Not allowed by CORS'));
     },
     credentials: true,
@@ -48,6 +54,7 @@ app.use(
   })
 );
 
+// Helmet security headers (disable CSP so our inline assets/images load).
 app.use(
   helmet({
     crossOriginResourcePolicy: { policy: 'cross-origin' },
@@ -55,21 +62,8 @@ app.use(
   })
 );
 
+// Serve locally stored certificate photos.
 app.use('/uploads', express.static(uploadsDir));
-
-// --- Ensure DB is connected before handling any request (serverless-safe) ---
-let isConnected = false;
-app.use(async (_req, res, next) => {
-  if (isConnected) return next();
-  try {
-    await connectDB();
-    isConnected = true;
-    next();
-  } catch (error) {
-    console.error('DB connection failed:', error.message);
-    res.status(500).json({ message: 'Database connection failed' });
-  }
-});
 
 // --- Routes ---
 
@@ -92,13 +86,17 @@ app.use((err, _req, res, _next) => {
   res.status(500).json({ message: 'Internal server error' });
 });
 
-// Local dev only — Vercel ignores this and calls the app directly.
-if (process.env.NODE_ENV !== 'production') {
-  connectDB().then(() => {
+// Connect to MongoDB (Atlas or local), then start the server.
+connectDB()
+  .then(() => {
     app.listen(PORT, () => {
       console.log(`Server running on http://localhost:${PORT}`);
+      console.log(`MongoDB URI: ${process.env.MONGO_ATLAS_URI ? 'Atlas' : process.env.MONGO_LOCAL_URI || 'local'}`);
     });
+  })
+  .catch((error) => {
+    console.error('Failed to start server:', error.message);
+    process.exit(1);
   });
-}
 
 module.exports = app;

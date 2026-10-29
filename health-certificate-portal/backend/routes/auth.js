@@ -50,7 +50,7 @@ router.post('/login', loginLimiter, async (req, res) => {
     res.cookie('adminSession', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
       path: '/',
     });
@@ -67,7 +67,12 @@ router.post('/login', loginLimiter, async (req, res) => {
 
 // POST /api/auth/logout
 router.post('/logout', (req, res) => {
-  res.clearCookie('adminSession', { path: '/', httpOnly: true });
+  res.clearCookie('adminSession', {
+    path: '/',
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+  });
   return res.json({ message: 'Logged out successfully.' });
 });
 
