@@ -65,6 +65,7 @@ app.use(async (_req, res, next) => {
   try {
     if (!dbReady) dbReady = connectDB();
     await dbReady;
+    await seedAdmin();
     next();
   } catch (error) {
     dbReady = null; // agli request pe dobara try kare
@@ -115,27 +116,26 @@ if (!process.env.VERCEL) {
 }
 
 // Admin user seed karo env se (sirf agar pehle se nahi hai)
-if (process.env.ADMIN_USERNAME && process.env.ADMIN_PASSWORD_HASH) {
+let adminSeeded = false;
+async function seedAdmin() {
+  if (adminSeeded) return;
+  if (!process.env.ADMIN_USERNAME || !process.env.ADMIN_PASSWORD_HASH) return;
   const bcrypt = require('bcryptjs');
   const User = require('./models/User');
-
-  async function seedAdmin() {
-    try {
-      const existing = await User.findOne({ username: process.env.ADMIN_USERNAME });
-      if (!existing) {
-        // Agar hash plain text hai toh ise hash karo, warna as-is use karo
-        let hash = process.env.ADMIN_PASSWORD_HASH;
-        if (!hash.startsWith('$2a$') && !hash.startsWith('$2b$')) {
-          hash = await bcrypt.hash(process.env.ADMIN_PASSWORD_HASH, 10);
-        }
-        await User.create({ username: process.env.ADMIN_USERNAME, passwordHash: hash });
-        console.log('Admin user seeded:', process.env.ADMIN_USERNAME);
+  try {
+    const existing = await User.findOne({ username: process.env.ADMIN_USERNAME });
+    if (!existing) {
+      let hash = process.env.ADMIN_PASSWORD_HASH;
+      if (!hash.startsWith('$2a$') && !hash.startsWith('$2b$')) {
+        hash = await bcrypt.hash(process.env.ADMIN_PASSWORD_HASH, 10);
       }
-    } catch (err) {
-      console.error('Admin seed error:', err.message);
+      await User.create({ username: process.env.ADMIN_USERNAME, passwordHash: hash });
+      console.log('Admin user seeded:', process.env.ADMIN_USERNAME);
     }
+    adminSeeded = true;
+  } catch (err) {
+    console.error('Admin seed error:', err.message);
   }
-  seedAdmin();
 }
 
 module.exports = app;
