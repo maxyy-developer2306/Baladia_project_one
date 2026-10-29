@@ -71,6 +71,15 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', service: 'health-certificate-portal-backend' });
 });
 
+// Root route — friendly status page when backend URL is opened directly.
+app.get('/', (_req, res) => {
+  res.json({
+    status: 'ok',
+    service: 'health-certificate-portal-backend',
+    message: 'Backend is running. Database connected. API endpoints are under /api/.',
+  });
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api/certificates', certificateRoutes);
 app.use('/api/settings', settingsRoutes);
