@@ -16,8 +16,12 @@ configureCloudinary();
 
 // Local storage for certificate photos (used when Cloudinary is not configured).
 const uploadsDir = path.join(__dirname, '..', 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
+try {
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+} catch (_) {
+  // Read-only filesystem (Vercel serverless); local storage unavailable.
 }
 
 const upload = multer({
@@ -134,18 +138,23 @@ router.post('/', authMiddleware, upload.single('photo'), async (req, res) => {
 
     let userPhoto = '';
     if (req.file) {
-      if (isCloudinaryConfigured()) {
-        const result = await cloudinary.uploader.upload(req.file.path, {
-          folder: 'health-certificate-portal',
-        });
-        userPhoto = result.secure_url;
-        // Remove the temporary local file after upload.
-        try { fs.unlinkSync(req.file.path); } catch (_) {}
-      } else {
-        const ext = path.extname(req.file.originalname);
-        const finalName = `${req.file.filename}${ext}`;
-        fs.renameSync(req.file.path, path.join(uploadsDir, finalName));
-        userPhoto = `/uploads/${finalName}`;
+      try {
+        if (isCloudinaryConfigured()) {
+          const result = await cloudinary.uploader.upload(req.file.path, {
+            folder: 'health-certificate-portal',
+          });
+          userPhoto = result.secure_url;
+          // Remove the temporary local file after upload.
+          try { fs.unlinkSync(req.file.path); } catch (_) {}
+        } else {
+          // Vercel serverless has no persistent filesystem; skip local save.
+          // Certificate will be created without a photo unless Cloudinary is configured.
+          try { fs.unlinkSync(req.file.path); } catch (_) {}
+          console.warn('Cloudinary not configured; photo not saved on serverless.');
+        }
+      } catch (uploadErr) {
+        console.error('Photo upload failed:', uploadErr.message);
+        // Continue without photo rather than failing the whole request.
       }
     }
 
@@ -186,7 +195,7 @@ router.post('/', authMiddleware, upload.single('photo'), async (req, res) => {
     if (req.file) {
       try { fs.unlinkSync(req.file.path); } catch (_) {}
     }
-    res.status(500).json({ message: 'Failed to create certificate.' });
+    res.status(500).json({ message: 'Failed to create certificate.', error: error.message });
   }
 });
 
@@ -235,17 +244,20 @@ router.put('/:id', authMiddleware, upload.single('photo'), async (req, res) => {
         try { fs.unlinkSync(oldPath); } catch (_) {}
       }
 
-      if (isCloudinaryConfigured()) {
-        const result = await cloudinary.uploader.upload(req.file.path, {
-          folder: 'health-certificate-portal',
-        });
-        certificate.userPhoto = result.secure_url;
-        try { fs.unlinkSync(req.file.path); } catch (_) {}
-      } else {
-        const ext = path.extname(req.file.originalname);
-        const finalName = `${req.file.filename}${ext}`;
-        fs.renameSync(req.file.path, path.join(uploadsDir, finalName));
-        certificate.userPhoto = `/uploads/${finalName}`;
+      try {
+        if (isCloudinaryConfigured()) {
+          const result = await cloudinary.uploader.upload(req.file.path, {
+            folder: 'health-certificate-portal',
+          });
+          certificate.userPhoto = result.secure_url;
+          try { fs.unlinkSync(req.file.path); } catch (_) {}
+        } else {
+          // Vercel serverless has no persistent filesystem; skip local save.
+          try { fs.unlinkSync(req.file.path); } catch (_) {}
+          console.warn('Cloudinary not configured; photo not saved on serverless.');
+        }
+      } catch (uploadErr) {
+        console.error('Photo upload failed:', uploadErr.message);
       }
     }
 
@@ -263,7 +275,7 @@ router.put('/:id', authMiddleware, upload.single('photo'), async (req, res) => {
     if (req.file) {
       try { fs.unlinkSync(req.file.path); } catch (_) {}
     }
-    res.status(500).json({ message: 'Failed to update certificate.' });
+    res.status(500).json({ message: 'Failed to update certificate.', error: error.message });
   }
 });
 
