@@ -25,7 +25,7 @@ try {
 }
 
 const upload = multer({
-  dest: uploadsDir,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
   fileFilter: (_req, file, cb) => {
     const allowed = ['image/jpeg', 'image/png', 'image/webp'];
@@ -140,16 +140,13 @@ router.post('/', authMiddleware, upload.single('photo'), async (req, res) => {
     if (req.file) {
       try {
         if (isCloudinaryConfigured()) {
-          const result = await cloudinary.uploader.upload(req.file.path, {
+          const result = await cloudinary.uploader.upload(req.file.buffer, {
             folder: 'health-certificate-portal',
+            resource_type: 'image',
           });
           userPhoto = result.secure_url;
-          // Remove the temporary local file after upload.
-          try { fs.unlinkSync(req.file.path); } catch (_) {}
         } else {
           // Vercel serverless has no persistent filesystem; skip local save.
-          // Certificate will be created without a photo unless Cloudinary is configured.
-          try { fs.unlinkSync(req.file.path); } catch (_) {}
           console.warn('Cloudinary not configured; photo not saved on serverless.');
         }
       } catch (uploadErr) {
@@ -191,10 +188,6 @@ router.post('/', authMiddleware, upload.single('photo'), async (req, res) => {
     });
   } catch (error) {
     console.error('Create certificate error:', error.message);
-    // Clean up uploaded file if creation failed.
-    if (req.file) {
-      try { fs.unlinkSync(req.file.path); } catch (_) {}
-    }
     res.status(500).json({ message: 'Failed to create certificate.', error: error.message });
   }
 });
@@ -204,9 +197,6 @@ router.put('/:id', authMiddleware, upload.single('photo'), async (req, res) => {
   try {
     const certificate = await Certificate.findById(req.params.id);
     if (!certificate) {
-      if (req.file) {
-        try { fs.unlinkSync(req.file.path); } catch (_) {}
-      }
       return res.status(404).json({ message: 'Certificate not found.' });
     }
 
@@ -246,14 +236,13 @@ router.put('/:id', authMiddleware, upload.single('photo'), async (req, res) => {
 
       try {
         if (isCloudinaryConfigured()) {
-          const result = await cloudinary.uploader.upload(req.file.path, {
+          const result = await cloudinary.uploader.upload(req.file.buffer, {
             folder: 'health-certificate-portal',
+            resource_type: 'image',
           });
           certificate.userPhoto = result.secure_url;
-          try { fs.unlinkSync(req.file.path); } catch (_) {}
         } else {
           // Vercel serverless has no persistent filesystem; skip local save.
-          try { fs.unlinkSync(req.file.path); } catch (_) {}
           console.warn('Cloudinary not configured; photo not saved on serverless.');
         }
       } catch (uploadErr) {
@@ -272,9 +261,6 @@ router.put('/:id', authMiddleware, upload.single('photo'), async (req, res) => {
     });
   } catch (error) {
     console.error('Update certificate error:', error.message);
-    if (req.file) {
-      try { fs.unlinkSync(req.file.path); } catch (_) {}
-    }
     res.status(500).json({ message: 'Failed to update certificate.', error: error.message });
   }
 });
