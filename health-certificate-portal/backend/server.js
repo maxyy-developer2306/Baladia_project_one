@@ -28,23 +28,26 @@ const uploadsDir = path.join(__dirname, 'uploads');
 
 // --- Middleware ---
 
-// Parse JSON bodies.
 app.use(express.json({ limit: '2mb' }));
-
-// Parse cookies (required for HTTP-only JWT session cookie).
 app.use(cookieParser());
 
-// CORS: allow both deployments and local dev, with credentials (cookies).
 app.use(
   cors({
-    origin: allowedOrigins,
+    origin: function (origin, callback) {
+      // allow requests with no origin (like curl, mobile apps, Postman)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      console.error('Blocked by CORS:', origin, 'Allowed:', allowedOrigins);
+      return callback(new Error('Not allowed by CORS'));
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   })
 );
 
-// Helmet security headers (disable CSP so our inline assets/images load).
 app.use(
   helmet({
     crossOriginResourcePolicy: { policy: 'cross-origin' },
@@ -52,8 +55,21 @@ app.use(
   })
 );
 
-// Serve locally stored certificate photos.
 app.use('/uploads', express.static(uploadsDir));
+
+// --- Ensure DB is connected before handling any request (serverless-safe) ---
+let isConnected = false;
+app.use(async (_req, res, next) => {
+  if (isConnected) return next();
+  try {
+    await connectDB();
+    isConnected = true;
+    next();
+  } catch (error) {
+    console.error('DB connection failed:', error.message);
+    res.status(500).json({ message: 'Database connection failed' });
+  }
+});
 
 // --- Routes ---
 
@@ -76,17 +92,13 @@ app.use((err, _req, res, _next) => {
   res.status(500).json({ message: 'Internal server error' });
 });
 
-// Connect to MongoDB (Atlas or local), then start the server.
-connectDB()
-  .then(() => {
+// Local dev only — Vercel ignores this and calls the app directly.
+if (process.env.NODE_ENV !== 'production') {
+  connectDB().then(() => {
     app.listen(PORT, () => {
       console.log(`Server running on http://localhost:${PORT}`);
-      console.log(`MongoDB URI: ${process.env.MONGO_ATLAS_URI ? 'Atlas' : process.env.MONGO_LOCAL_URI || 'local'}`);
     });
-  })
-  .catch((error) => {
-    console.error('Failed to start server:', error.message);
-    process.exit(1);
   });
+}
 
 module.exports = app;
