@@ -45,11 +45,7 @@ function App() {
         />
         <Route
           path="/certificates/:id/view"
-          element={
-            <ProtectedRoute>
-              <CertificateDetails />
-            </ProtectedRoute>
-          }
+          element={<CertificateDetails />}
         />
       </Routes>
     </BrowserRouter>
