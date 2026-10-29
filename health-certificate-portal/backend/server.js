@@ -114,4 +114,28 @@ if (!process.env.VERCEL) {
   });
 }
 
+// Admin user seed karo env se (sirf agar pehle se nahi hai)
+if (process.env.ADMIN_USERNAME && process.env.ADMIN_PASSWORD_HASH) {
+  const bcrypt = require('bcryptjs');
+  const User = require('./models/User');
+
+  async function seedAdmin() {
+    try {
+      const existing = await User.findOne({ username: process.env.ADMIN_USERNAME });
+      if (!existing) {
+        // Agar hash plain text hai toh ise hash karo, warna as-is use karo
+        let hash = process.env.ADMIN_PASSWORD_HASH;
+        if (!hash.startsWith('$2a$') && !hash.startsWith('$2b$')) {
+          hash = await bcrypt.hash(process.env.ADMIN_PASSWORD_HASH, 10);
+        }
+        await User.create({ username: process.env.ADMIN_USERNAME, passwordHash: hash });
+        console.log('Admin user seeded:', process.env.ADMIN_USERNAME);
+      }
+    } catch (err) {
+      console.error('Admin seed error:', err.message);
+    }
+  }
+  seedAdmin();
+}
+
 module.exports = app;
