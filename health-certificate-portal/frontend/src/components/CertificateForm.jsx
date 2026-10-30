@@ -21,7 +21,7 @@ const FIELDS = [
   { key: 'facilityNumber', label: 'رقم المنشأة', type: 'text', required: false },
 ];
 
-export default function CertificateForm({ initialData, onSubmit }) {
+export default function CertificateForm({ initialData, onSubmit, submitting }) {
   const [form, setForm] = useState({
     ...Object.fromEntries(FIELDS.map((f) => [f.key, initialData?.[f.key] || ''])),
     status: initialData?.status || 'active',
@@ -106,10 +106,11 @@ export default function CertificateForm({ initialData, onSubmit }) {
         </div>
         <button
           type="submit"
-          className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium flex items-center gap-2 cursor-pointer"
+          disabled={submitting}
+          className={`px-6 py-3 rounded-lg transition text-sm font-medium flex items-center gap-2 ${submitting ? 'bg-gray-400 text-white cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
         >
           <Plus size={18} />
-          {initialData ? 'Update Certificate' : 'Create Certificate'}
+          {submitting ? 'Saving...' : initialData ? 'Update Certificate' : 'Create Certificate'}
         </button>
       </form>
     </div>

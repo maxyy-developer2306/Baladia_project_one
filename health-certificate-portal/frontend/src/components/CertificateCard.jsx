@@ -59,7 +59,7 @@ export default function CertificateCard({ certificate, onStatusChange }) {
       {certificate.userPhoto && (
         <div className="mt-4">
           <img
-            src={certificate.userPhoto.startsWith('/uploads/') ? 'http://localhost:4000' + certificate.userPhoto : certificate.userPhoto}
+            src={certificate.userPhoto || ''}
             alt="Certificate photo"
             className="w-32 h-32 object-cover rounded-lg border border-gray-200"
             onError={(e) => {

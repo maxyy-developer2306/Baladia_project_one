@@ -154,10 +154,10 @@ export default function Dashboard() {
 
           <button
             onClick={openCreate}
-            className="flex cursor-pointer items-center gap-2 rounded-md bg-white px-3.5 py-2 text-sm font-medium text-black hover:bg-neutral-200 transition-colors"
+            disabled={saving}
+            className={`flex cursor-pointer items-center gap-2 rounded-md px-3.5 py-2 text-sm font-medium text-black transition-colors ${saving ? 'bg-neutral-300 text-neutral-500 cursor-not-allowed' : 'bg-white hover:bg-neutral-200'}`}
           >
-            <Plus size={16} />
-            Add Certificate
+            {saving ? 'Creating...' : 'Add Certificate'}
           </button>
         </div>
       </div>
@@ -366,6 +366,7 @@ export default function Dashboard() {
               <CertificateForm
                 initialData={editing}
                 onSubmit={editing ? handleUpdate : handleCreate}
+                submitting={saving}
               />
             </div>
           </div>

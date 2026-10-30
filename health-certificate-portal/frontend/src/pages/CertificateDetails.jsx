@@ -76,9 +76,7 @@ export default function CertificateDetails() {
     );
   }
 
-  const photoUrl = cert.userPhoto && cert.userPhoto.startsWith('/uploads/')
-    ? 'http://localhost:4000' + cert.userPhoto
-    : cert.userPhoto;
+  const photoUrl = cert.userPhoto || '';
 
   return (
     <div className="min-h-screen flex flex-col bg-white text-[#333] m-0 p-0" style={{ fontFamily: "'Cairo', sans-serif" }} dir="rtl">

@@ -21,17 +21,16 @@ const PORT = process.env.PORT || 4000;
 // Allowed frontend origins (hardcoded + env + local dev).
 const allowedOrigins = [
   'https://app-balady-gov-sa-gold.vercel.app',
-  'https://app-balady-gov-com.vercel.app',
+
   'http://localhost:5173',
   'http://localhost:3000',
   process.env.MAIN_DEPLOYMENT_URL,
-  process.env.BACKUP_DEPLOYMENT_URL,
   process.env.FRONTEND_URL,
 ]
   .filter(Boolean)
   .map((u) => u.replace(/\/+$/, '')); // trailing slash hata do
 
-const uploadsDir = path.join(__dirname, 'uploads');
+
 
 // --- CORS (sab se pehle, taake error pe bhi headers jayen) ---
 const corsOptions = {
@@ -57,7 +56,7 @@ app.use(
   })
 );
 
-app.use('/uploads', express.static(uploadsDir));
+
 
 // --- DB connection (serverless-safe, cached) ---
 let dbReady = null;

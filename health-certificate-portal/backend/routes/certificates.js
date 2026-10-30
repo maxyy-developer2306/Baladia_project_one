@@ -2,27 +2,15 @@
 // Admin-protected CRUD + public verification + QR code generation.
 const express = require('express');
 const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
 const Certificate = require('../models/Certificate');
 const Setting = require('../models/Settings');
 const { generateUniqueKey } = require('../utils/crypto');
 const { generateQRDataUrl } = require('../utils/qr');
-const { configureCloudinary, isCloudinaryConfigured, cloudinary } = require('../config/cloudinary');
+const { configureCloudinary, cloudinary } = require('../config/cloudinary');
 const authMiddleware = require('../middleware/auth');
 
 const router = express.Router();
 configureCloudinary();
-
-// Local storage for certificate photos (used when Cloudinary is not configured).
-const uploadsDir = path.join(__dirname, '..', 'uploads');
-try {
-  if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true });
-  }
-} catch (_) {
-  // Read-only filesystem (Vercel serverless); local storage unavailable.
-}
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -34,20 +22,10 @@ const upload = multer({
 });
 
 // Stable public redirect URL for a certificate.
-// Uses the active redirect deployment (main or backup) so that QR codes
-// always point to a live redirect endpoint. Switching the active deployment
-// does NOT require regenerating existing QR codes because both deployments
-// remain live and serve the same /r/:uniqueKey redirect endpoint.
+// Points to the main deployment.
 async function verificationUrl(uniqueKey) {
-  const active = await Setting.getSetting(
-    'activeRedirectDeployment',
-    process.env.ACTIVE_DEPLOYMENT || 'main'
-  );
-  const base =
-    active === 'backup'
-      ? process.env.BACKUP_DEPLOYMENT_URL
-      : process.env.MAIN_DEPLOYMENT_URL;
-  const host = (base || 'http://localhost:5173').replace(/\/+$/, '');
+  const base = process.env.MAIN_DEPLOYMENT_URL || 'http://localhost:5173';
+  const host = base.replace(/\/+$/, '');
   return `${host}/r/${uniqueKey}`;
 }
 
@@ -139,16 +117,14 @@ router.post('/', authMiddleware, upload.single('photo'), async (req, res) => {
     let userPhoto = '';
     if (req.file) {
       try {
-        if (isCloudinaryConfigured()) {
-          const result = await cloudinary.uploader.upload(req.file.buffer, {
+        const result = await cloudinary.uploader.upload(
+          `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`,
+          {
             folder: 'health-certificate-portal',
             resource_type: 'image',
-          });
-          userPhoto = result.secure_url;
-        } else {
-          // Vercel serverless has no persistent filesystem; skip local save.
-          console.warn('Cloudinary not configured; photo not saved on serverless.');
-        }
+          }
+        );
+        userPhoto = result.secure_url;
       } catch (uploadErr) {
         console.error('Photo upload failed:', uploadErr.message);
         // Continue without photo rather than failing the whole request.
@@ -228,23 +204,15 @@ router.put('/:id', authMiddleware, upload.single('photo'), async (req, res) => {
     });
 
     if (req.file) {
-      // Remove old local photo when replaced.
-      if (certificate.userPhoto && certificate.userPhoto.startsWith('/uploads/')) {
-        const oldPath = path.join(__dirname, '..', certificate.userPhoto);
-        try { fs.unlinkSync(oldPath); } catch (_) {}
-      }
-
       try {
-        if (isCloudinaryConfigured()) {
-          const result = await cloudinary.uploader.upload(req.file.buffer, {
+        const result = await cloudinary.uploader.upload(
+          `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`,
+          {
             folder: 'health-certificate-portal',
             resource_type: 'image',
-          });
-          certificate.userPhoto = result.secure_url;
-        } else {
-          // Vercel serverless has no persistent filesystem; skip local save.
-          console.warn('Cloudinary not configured; photo not saved on serverless.');
-        }
+          }
+        );
+        certificate.userPhoto = result.secure_url;
       } catch (uploadErr) {
         console.error('Photo upload failed:', uploadErr.message);
       }
@@ -271,10 +239,6 @@ router.delete('/:id', authMiddleware, async (req, res) => {
     const certificate = await Certificate.findByIdAndDelete(req.params.id);
     if (!certificate) {
       return res.status(404).json({ message: 'Certificate not found.' });
-    }
-    // Remove local photo if present.
-    if (certificate.userPhoto && certificate.userPhoto.startsWith('/uploads/')) {
-      try { fs.unlinkSync(path.join(__dirname, '..', certificate.userPhoto)); } catch (_) {}
     }
     res.json({ message: 'Certificate deleted.' });
   } catch (error) {
