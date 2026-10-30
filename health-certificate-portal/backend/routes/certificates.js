@@ -7,7 +7,6 @@ const Setting = require('../models/Settings');
 const { generateUniqueKey } = require('../utils/crypto');
 const { generateQRDataUrl } = require('../utils/qr');
 const { configureCloudinary, cloudinary } = require('../config/cloudinary');
-const authMiddleware = require('../middleware/auth');
 
 const router = express.Router();
 configureCloudinary();
@@ -35,7 +34,7 @@ const PUBLIC_FIELDS =
 
 // --- Admin: list certificates ---
 // Query params: status, search, page, limit
-router.get('/', authMiddleware, async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const { status, search, page = 1, limit = 20 } = req.query;
     const filter = {};
@@ -85,7 +84,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // --- Admin: create a certificate ---
-router.post('/', authMiddleware, upload.single('photo'), async (req, res) => {
+router.post('/', upload.single('photo'), async (req, res) => {
   try {
     const {
       name,
@@ -169,7 +168,7 @@ router.post('/', authMiddleware, upload.single('photo'), async (req, res) => {
 });
 
 // --- Admin: update a certificate ---
-router.put('/:id', authMiddleware, upload.single('photo'), async (req, res) => {
+router.put('/:id', upload.single('photo'), async (req, res) => {
   try {
     const certificate = await Certificate.findById(req.params.id);
     if (!certificate) {
@@ -234,7 +233,7 @@ router.put('/:id', authMiddleware, upload.single('photo'), async (req, res) => {
 });
 
 // --- Admin: delete a certificate ---
-router.delete('/:id', authMiddleware, async (req, res) => {
+router.delete('/:id', async (req, res) => {
   try {
     const certificate = await Certificate.findByIdAndDelete(req.params.id);
     if (!certificate) {
@@ -248,7 +247,7 @@ router.delete('/:id', authMiddleware, async (req, res) => {
 });
 
 // --- Admin: activate / deactivate a certificate ---
-router.patch('/:id/status', authMiddleware, async (req, res) => {
+router.patch('/:id/status', async (req, res) => {
   try {
     const { status } = req.body || {};
     if (!['active', 'deactive'].includes(status)) {
