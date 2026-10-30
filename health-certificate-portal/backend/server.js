@@ -87,6 +87,19 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', service: 'health-certificate-portal-backend' });
 });
 
+app.get('/api/debug/cloudinary', (_req, res) => {
+  res.json({
+    cloudinaryConfigured: !!(
+      process.env.CLOUDINARY_CLOUD_NAME &&
+      process.env.CLOUDINARY_API_KEY &&
+      process.env.CLOUDINARY_API_SECRET
+    ),
+    hasCloudName: !!process.env.CLOUDINARY_CLOUD_NAME,
+    hasApiKey: !!process.env.CLOUDINARY_API_KEY,
+    hasApiSecret: !!process.env.CLOUDINARY_API_SECRET,
+  });
+});
+
 // Dono paths support: /api/auth/... aur /auth/...
 app.use('/api/auth', authRoutes);
 app.use('/auth', authRoutes);
