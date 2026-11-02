@@ -367,7 +367,7 @@ export default function CertificateDetails() {
             مسجلة لدى هيئة الحكومة الرقمية
           </div>
           <div>
-            <span>تم تطويره وصيانته بواسطة وزارة البلديات والإسكان</span>
+            <span>تم  تطويره وصيانته بواسطة وزارة البلديات والإسكان</span>
           </div>
         </div>
       </footer>
