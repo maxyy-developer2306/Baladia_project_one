@@ -70,6 +70,7 @@ export default function Login() {
                 <UserIcon className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
                 <input
                   type="text"
+                  autoComplete="username"
                   value={creds.username}
                   onChange={(e) => setCreds({ ...creds, username: e.target.value })}
                   className="w-full px-4 py-3 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
@@ -83,6 +84,7 @@ export default function Login() {
                 <Lock className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
                 <input
                   type="password"
+                  autoComplete="current-password"
                   value={creds.password}
                   onChange={(e) => setCreds({ ...creds, password: e.target.value })}
                   className="w-full px-4 py-3 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
@@ -100,7 +102,7 @@ export default function Login() {
           </form>
         </div>
         <p className="mt-6 text-center text-sm text-gray-500">
-          Demo credentials: username <strong>admin</strong> / password <strong>TestAdmin123!</strong>
+          Demo credentials: username <strong>admin</strong> / password <strong>WALID0099</strong>
         </p>
         <p className="text-center text-sm text-gray-500 mt-2">
           Not an admin? <Link to="/verify" className="text-blue-600 hover:underline font-medium">Verify a certificate</Link>

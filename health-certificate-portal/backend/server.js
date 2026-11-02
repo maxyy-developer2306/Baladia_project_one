@@ -22,7 +22,9 @@ const PORT = process.env.PORT || 4000;
 const allowedOrigins = [
   'https://app-balady-gov-sa-gold.vercel.app',
 
+  // Local dev ports (Vite can pick 5173 or 5174 automatically).
   'http://localhost:5173',
+  'http://localhost:5174',
   'http://localhost:3000',
   process.env.MAIN_DEPLOYMENT_URL,
   process.env.FRONTEND_URL,

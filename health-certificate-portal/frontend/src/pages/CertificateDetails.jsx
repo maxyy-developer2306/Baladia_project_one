@@ -1,6 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { AlertCircle, Loader2, X } from 'lucide-react';
+import {
+  AlertCircle,
+  Loader2,
+  X,
+  Menu,
+  ChevronDown,
+  Settings,
+  Accessibility,
+} from 'lucide-react';
 import api from '../api';
 
 export default function CertificateDetails() {
@@ -9,6 +17,7 @@ export default function CertificateDetails() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [modalInfo, setModalInfo] = useState(null);
+  const [menuOpen, setMenuOpen] = useState(false); // controls the hamburger dropdown
 
   useEffect(() => {
     api
@@ -48,6 +57,15 @@ export default function CertificateDetails() {
       title: 'بحث',
       body: 'خاصية البحث تتيح لك إيجاد الخدمات والمعلومات داخل منصة بلدي بسرعة وسهولة.',
     },
+    verify: {
+      title: 'كيف تتحقق ؟',
+      body: 'تحقق من صحة هذا الموقع من خلال شعار هيئة الحكومة الرقمية الموضح أعلى الصفحة، وتأكد أن الرابط ينتهي بـ gov.sa الرسمي.',
+    },
+    // Settings popup content
+    settings: {
+      title: 'الإعدادات',
+      body: 'اللغة: العربية | الإنجليزية\nحجم الخط: صغير | متوسط | كبير\nوضع التباين العالي: تشغيل | إيقاف\nيمكنك تخصيص طريقة عرض الموقع بما يناسبك من هذه القائمة.',
+    },
   };
 
   const openModal = (key) => setModalInfo(navInfo[key]);
@@ -85,33 +103,95 @@ export default function CertificateDetails() {
         @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
       `}</style>
 
-      {/* Top Utility Bar */}
-      <div className="bg-[#f4f4f4] px-[40px] py-[6px] text-[13px] border-b border-[#e5e5e5] flex justify-between flex-col md:flex-row gap-[5px] md:gap-0 text-center md:text-right">
-        <div className="flex justify-center md:justify-start w-full md:w-auto">
-          <a href="#" className="text-[#555] no-underline ml-[15px]">أدوات سهولة الوصول</a>
-          <a href="#" className="text-[#555] no-underline ml-[15px]">الإعدادات</a>
+      {/* ===== Gray verification banner (matches gov.sa style) ===== */}
+      <div className="bg-[#f4f4f4] border-b border-[#e5e5e5] px-[20px] md:px-[40px] py-[12px]">
+        {/* Saudi flag row - top right */}
+        <div className="flex justify-end mb-[6px]">
+          <img
+            src="https://flagcdn.com/w40/sa.png"
+            alt="Saudi Arabia"
+            className="w-[26px] h-[18px] object-cover rounded-[2px]"
+          />
         </div>
-        <div className="flex justify-center md:justify-start w-full md:w-auto">
-          <span>موقع حكومي مسجل لدى هيئة الحكومة الرقمية <strong className="text-[#0b6c42]">كيف تتحقق ؟</strong></span>
+
+        {/* Notice text */}
+        <p className="text-[13px] text-[#333] text-right leading-6 mb-[6px]">
+          موقع حكومي مسجل لدى هيئة الحكومة الرقمية
+        </p>
+
+        {/* "How to verify" link with chevron */}
+        <button
+          onClick={() => openModal('verify')}
+          className="flex items-center gap-[4px] text-[#0b6c42] font-bold text-[13px] bg-transparent border-0 cursor-pointer mb-[10px]"
+        >
+          <ChevronDown size={16} />
+          <span>كيف تتحقق ؟</span>
+        </button>
+
+        {/* Accessibility + settings row */}
+        <div className="flex items-center justify-between flex-wrap gap-[10px] pt-[8px] border-t border-[#e5e5e5]">
+          <button className="flex items-center gap-[6px] text-[#555] text-[13px] bg-transparent border-0 cursor-pointer">
+            <Accessibility size={18} />
+            <span>أدوات سهولة الوصول</span>
+          </button>
+          {/* Settings button opens the settings popup */}
+          <button
+            onClick={() => openModal('settings')}
+            className="flex items-center gap-[6px] text-[#555] text-[13px] bg-transparent border-0 cursor-pointer"
+          >
+            <Settings size={18} />
+            <span>الإعدادات</span>
+          </button>
         </div>
       </div>
 
-      {/* Premium Green Navbar */}
-      <nav className="bg-white shadow-[0_2px_10px_rgba(0,0,0,0.05)] px-[40px] py-[15px] flex justify-between items-center flex-col md:flex-row gap-[15px] md:gap-0 text-center md:text-right">
-        <div className="flex gap-[25px] items-center flex-col md:flex-row w-full md:w-auto">
-          <img src="/img/logo.png" alt="Balady Logo" className="h-[55px] ml-0 md:ml-[20px] mb-[10px] md:mb-0" />
-          <button onClick={() => openModal('about')} className="text-[#2d2d2d] no-underline font-semibold text-[15px] py-[8px] px-[4px] w-full md:w-auto block bg-transparent border-0 cursor-pointer" style={{ fontFamily: "'Cairo', sans-serif" }}>عن بلدي</button>
-          <button onClick={() => openModal('services')} className="text-white bg-[#0b6c42] no-underline font-semibold text-[15px] py-[8px] px-[15px] rounded-[4px] w-full md:w-auto block border-0 cursor-pointer" style={{ fontFamily: "'Cairo', sans-serif" }}>الخدمات</button>
-          <button onClick={() => openModal('inquiries')} className="text-[#2d2d2d] no-underline font-semibold text-[15px] py-[8px] px-[4px] w-full md:w-auto block bg-transparent border-0 cursor-pointer" style={{ fontFamily: "'Cairo', sans-serif" }}>الاستعلامات</button>
-          <button onClick={() => openModal('contact')} className="text-[#2d2d2d] no-underline font-semibold text-[15px] py-[8px] px-[4px] w-full md:w-auto block bg-transparent border-0 cursor-pointer" style={{ fontFamily: "'Cairo', sans-serif" }}>تواصل معنا</button>
+      {/* ===== Logo + hamburger nav (matches "balady services" nav) ===== */}
+      <nav className="bg-white px-[20px] md:px-[40px] py-[15px] flex justify-between items-center relative">
+        {/* Logo on the right (RTL start) */}
+        <div className="flex items-center gap-[10px]">
+          <img src="/img/logo.png" alt="Balady Logo" className="h-[46px]" />
+          <div className="flex flex-col leading-[1.1] text-right">
+            <span className="font-bold text-[16px] text-[#2d2d2d]">خدمات</span>
+            <span className="font-bold text-[16px] text-[#2d2d2d]">بلدي</span>
+          </div>
         </div>
-        <div className="w-full md:w-auto">
-          <button onClick={() => openModal('business')} className="bg-[#0b6c42] text-white no-underline rounded-[4px] py-[8px] px-[20px] font-bold inline-block w-full md:w-auto text-center border-0 cursor-pointer" style={{ fontFamily: "'Cairo', sans-serif" }}>بلدي أعمال</button>
-          <button onClick={() => openModal('search')} className="mr-0 md:mr-[20px] mt-[5px] md:mt-0 text-[#333] no-underline text-[14px] inline-block w-full md:w-auto text-center bg-transparent border-0 cursor-pointer" style={{ fontFamily: "'Cairo', sans-serif" }}>بحث</button>
-        </div>
+
+        {/* Hamburger menu on the left */}
+        <button
+          onClick={() => setMenuOpen((v) => !v)}
+          className="bg-transparent border-0 cursor-pointer text-[#2d2d2d]"
+          aria-label="فتح القائمة"
+        >
+          <Menu size={28} />
+        </button>
+
+        {/* Dropdown menu triggered by hamburger icon */}
+        {menuOpen && (
+          <div className="absolute top-full left-[20px] md:left-[40px] mt-[8px] bg-white shadow-lg rounded-[8px] py-[8px] w-[200px] z-40 border border-[#eee]">
+            {[
+              ['about', 'عن بلدي'],
+              ['services', 'الخدمات'],
+              ['inquiries', 'الاستعلامات'],
+              ['contact', 'تواصل معنا'],
+              ['business', 'بلدي أعمال'],
+              ['search', 'بحث'],
+            ].map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => {
+                  openModal(key);
+                  setMenuOpen(false);
+                }}
+                className="block w-full text-right px-[16px] py-[10px] text-[14px] text-[#2d2d2d] bg-transparent border-0 cursor-pointer hover:bg-[#f4f4f4]"
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
       </nav>
 
-      {/* Info Popup Modal */}
+      {/* Info Popup Modal (also used for the settings popup) */}
       {modalInfo && (
         <div
           className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4"
@@ -128,13 +208,19 @@ export default function CertificateDetails() {
               <X size={20} />
             </button>
             <h3 className="text-[#0f5132] font-bold text-[20px] mb-[12px]">{modalInfo.title}</h3>
-            <p className="text-[14px] text-[#444] leading-7">{modalInfo.body}</p>
+            {/* whitespace-pre-line so the settings list (with line breaks) renders on separate lines */}
+            <p className="text-[14px] text-[#444] leading-7 whitespace-pre-line">{modalInfo.body}</p>
           </div>
         </div>
       )}
 
-      {/* Page Content Title */}
-      <h2 className="text-center text-[#0f5132] mt-[30px] font-bold text-[26px]">شهادة صحية</h2>
+      {/* ===== Page title - now in English (matches "Health certificate for business activities") ===== */}
+      <h2
+        className="text-center text-[#2d2d2d] mt-[20px] font-bold text-[28px] leading-[1.4] px-[20px]"
+        dir="ltr"
+      >
+        Health certificate for business activities
+      </h2>
 
       {/* User Photo */}
       {cert.userPhoto && (
